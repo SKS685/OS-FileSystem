@@ -1,0 +1,46 @@
+# Compiled object files
+*.o
+*.obj
+
+# Compiled static libraries
+*.a
+
+# Compiled shared libraries
+*.so
+*.dylib
+*.dll
+
+# Executables
+*.out
+*.exe
+
+# CMake build directory
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+
+# Debug/Release build directories
+/debug/
+*/debug/
+*/release/
+build/
+
+# Temporary files
+*.tmp
+*.swp
+*.swo
+*.bak
+*.orig
+
+# IDEs
+.vscode/
+.idea/
+
+# Generated files
+*.log
+*.d
+
+# System files
+.DS_Store
+Thumbs.db
