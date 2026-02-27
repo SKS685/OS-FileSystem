@@ -4,12 +4,13 @@
 #include "fs/format.h"
 #include "disk/block_dev.h"
 
-/* * Search a directory's data blocks for a specific filename.
+/*
+ * Search a directory's data blocks for a specific filename.
  * Returns 0 on success and populates `found_inode`. Returns -1 if not found.
  */
 int fs_find_entry_in_dir(struct ext_inode *dir_inode, const char *target_name, uint32_t *found_inode)
 {
-    // 1. Safety check: Is this actually a directory?
+    // 1. Safety check
     if (dir_inode->i_mode != EXT_FT_DIR)
     {
         return -1;
@@ -18,7 +19,6 @@ int fs_find_entry_in_dir(struct ext_inode *dir_inode, const char *target_name, u
     uint8_t block_buf[FS_BLOCK_SIZE];
 
     // 2. Locate the directory's data.
-    // For this project scope, we will look at the first Extent (the first contiguous chunk of blocks).
     uint32_t physical_block = dir_inode->i_extents[0].ee_start_block;
     if (physical_block == 0)
     {
@@ -35,20 +35,17 @@ int fs_find_entry_in_dir(struct ext_inode *dir_inode, const char *target_name, u
     uint32_t offset = 0;
     while (offset < FS_BLOCK_SIZE)
     {
-        // Cast the raw byte offset to our directory entry structure
         struct ext_dir_entry *entry = (struct ext_dir_entry *)(block_buf + offset);
 
-        // If rec_len is 0, we've hit uninitialized garbage data at the end of the block
         if (entry->rec_len == 0)
             break;
 
         // 5. Check if it's a valid, active entry (inode != 0) and the name lengths match
         if (entry->inode != 0 && entry->name_len == strlen(target_name))
         {
-            // Compare the actual strings
             if (strncmp(entry->name, target_name, entry->name_len) == 0)
             {
-                *found_inode = entry->inode; // We found the file!
+                *found_inode = entry->inode; // File Found!
                 return 0;
             }
         }
@@ -57,5 +54,5 @@ int fs_find_entry_in_dir(struct ext_inode *dir_inode, const char *target_name, u
         offset += entry->rec_len;
     }
 
-    return -1; // Exhausted the block, file not found.
+    return -1; // Exhausted the block, File not found.
 }

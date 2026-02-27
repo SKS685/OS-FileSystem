@@ -15,7 +15,6 @@ int main()
     printf("    -> Disk initialized.\n");
 
     // 2. Format the drive with our custom Superblock
-    // (Note: We wrote fs_format inside super.c earlier)
     extern int fs_format(uint64_t disk_size_bytes);
     assert(fs_format(TEST_DISK_SIZE) == 0);
     printf("    -> Disk formatted.\n");
@@ -31,7 +30,6 @@ int main()
 
     disk_close();
 
-    // Clean up the test file
     remove(TEST_DISK_FILE);
     printf("[+] Namespace & Format Tests Passed!\n");
     return 0;

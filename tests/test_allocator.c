@@ -8,7 +8,7 @@ int main()
     printf("[*] Running Allocator & Bitmap Tests...\n");
 
     uint8_t dummy_bitmap[4096];
-    memset(dummy_bitmap, 0, sizeof(dummy_bitmap)); // All 0s (Free)
+    memset(dummy_bitmap, 0, sizeof(dummy_bitmap));
 
     uint32_t free_bit;
 
@@ -24,7 +24,7 @@ int main()
 
     // Test 3: Find the next available bit
     assert(bitmap_find_first_zero(dummy_bitmap, 4096 * 8, &free_bit) == 0);
-    assert(free_bit == 10); // Should skip 0-9
+    assert(free_bit == 10);
 
     // Test 4: Fill the entire bitmap (Simulate a full Block Group)
     memset(dummy_bitmap, 0xFF, sizeof(dummy_bitmap));

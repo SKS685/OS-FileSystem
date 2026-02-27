@@ -5,7 +5,7 @@
 #include <pthread.h>
 
 #define EXT_NAME_LEN 255
-#define DCACHE_HASH_SIZE 1024 // Size of the RAM hash table array
+#define DCACHE_HASH_SIZE 1024       // Size of the RAM hash table array
 
 /* --- File Types for Directories --- */
 #define EXT_FT_UNKNOWN 0
@@ -13,30 +13,31 @@
 #define EXT_FT_DIR 2
 #define EXT_FT_SYMLINK 7
 
-/* * The On-Disk Directory Entry
+/*
+ * The On-Disk Directory Entry
  * Directories are just files filled with an array of these structures.
  */
 struct ext_dir_entry
 {
-    uint32_t inode;    // Target Inode number (0 means entry is deleted)
-    uint16_t rec_len;  // Total length of this record (for dynamic sizing)
-    uint8_t name_len;  // Actual length of the string
-    uint8_t file_type; // File, Dir, etc.
-    char name[];       // Variable length array (C99 feature)
+    uint32_t inode;
+    uint16_t rec_len;
+    uint8_t name_len;
+    uint8_t file_type; 
+    char name[]; 
 };
 
-/* * The In-Memory Directory Cache (dcache) Entry
+/*
+ * The In-Memory Directory Cache (dcache) Entry
  * Used to avoid reading the disk when looking up paths like /usr/bin/app.
  */
 struct dentry
 {
-    uint32_t d_inode_num;          // The cached Inode Number
-    uint32_t d_parent_inode;       // The Parent Directory's Inode Number
-    char d_name[EXT_NAME_LEN + 1]; // Null-terminated string
+    uint32_t d_inode_num;
+    uint32_t d_parent_inode;
+    char d_name[EXT_NAME_LEN + 1];
 
-    // Hand-over-hand locking mechanism for path traversal
     // Multiple threads can read-lock; only one can write-lock to rename/delete
-    pthread_rwlock_t d_rwlock;
+    pthread_rwlock_t d_rwlock;      // ignore IDE function missing warning
 
     // For chaining collisions in the dcache hash table
     struct dentry *d_next;
@@ -47,7 +48,6 @@ struct dentry
 // Initialize the RAM dcache
 void dcache_init(void);
 
-// The core traversal function: Turns "/usr/bin/app" into an Inode Number
 // Returns 0 on success, negative error code (e.g., -ENOENT) on failure
 int namei(const char *path, uint32_t *target_inode);
 

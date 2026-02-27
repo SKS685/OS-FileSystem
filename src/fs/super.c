@@ -1,8 +1,8 @@
 #include <stdio.h>
 #include <string.h>
 #include "fs/format.h"
-#include "fs/extents.h"   // Needed for struct ext_inode and fs_write_inode
-#include "fs/namespace.h" // Needed for struct ext_dir_entry and EXT_FT_DIR
+#include "fs/extents.h"
+#include "fs/namespace.h"
 #include "disk/block_dev.h"
 
 // The globally cached superblock
@@ -19,7 +19,7 @@ int fs_format(uint64_t disk_size_bytes)
     global_sb.s_total_blocks = total_blocks;
     global_sb.s_blocks_per_group = FS_BLOCKS_PER_BG;
     global_sb.s_inodes_per_group = FS_INODES_PER_BG;
-    global_sb.s_bg_desc_start_block = 1; // Right after superblock at block 0
+    global_sb.s_bg_desc_start_block = 1;
 
     // Write superblock to physical block 0
     if (disk_write_block(0, &global_sb) != 0)
@@ -37,18 +37,14 @@ int fs_format(uint64_t disk_size_bytes)
         bg_desc.bg_inode_bitmap = bg_start_block + 2;
         bg_desc.bg_inode_table = bg_start_block + 3;
 
-        bg_desc.bg_free_blocks_count = FS_BLOCKS_PER_BG - 3; // Minus bitmaps and table
-
-        // In a real implementation, you would batch these writes.
-        // For simplicity, we write the descriptor table sequentially.
-        // Note: You must write these to the Descriptor blocks, not overwrite block 0!
+        bg_desc.bg_free_blocks_count = FS_BLOCKS_PER_BG - 3;
     }
 
     // --- BUILD THE ROOT DIRECTORY (Inode 2) ---
     struct ext_inode root_inode;
     memset(&root_inode, 0, sizeof(root_inode));
-    root_inode.i_mode = EXT_FT_DIR;    // Mark as directory
-    root_inode.i_size = FS_BLOCK_SIZE; // Takes up 1 block
+    root_inode.i_mode = EXT_FT_DIR;
+    root_inode.i_size = FS_BLOCK_SIZE;
     root_inode.i_links_count = 2;
 
     // Allocate 1 data block for the directory's contents

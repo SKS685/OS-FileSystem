@@ -21,8 +21,7 @@ int disk_init(const char *backing_filepath, uint64_t total_size_bytes)
     }
 
     // 2. Create the Sparse File
-    // This instantly makes the file look like it's 4 TiB to the OS without
-    // actually consuming 4 TiB of real hard drive space.
+    // This instantly makes the file look like it's 4 TiB to the OS without actually consuming 4 TiB of real hard drive space.
     if (ftruncate(disk_fd, total_size_bytes) != 0)
     {
         perror("Failed to truncate/resize simulated disk");
@@ -38,7 +37,6 @@ void disk_close(void)
 {
     if (disk_fd >= 0)
     {
-        // fsync forces the host OS to flush any cached writes to the physical SSD
         fsync(disk_fd);
         close(disk_fd);
         disk_fd = -1;
@@ -53,8 +51,6 @@ int disk_read_block(uint32_t block_num, void *buffer)
     // Calculate the exact byte offset on the 4 TiB disk
     off_t offset = (off_t)block_num * BLOCK_SIZE;
 
-    // pread() reads from a specific offset WITHOUT changing the global file pointer.
-    // This is strictly required because your 16-32 threads might be calling
     // disk_read_block concurrently!
     ssize_t bytes_read = pread(disk_fd, buffer, BLOCK_SIZE, offset);
 
@@ -72,7 +68,6 @@ int disk_write_block(uint32_t block_num, const void *buffer)
 
     off_t offset = (off_t)block_num * BLOCK_SIZE;
 
-    // pwrite() writes to a specific offset in a thread-safe manner
     ssize_t bytes_written = pwrite(disk_fd, buffer, BLOCK_SIZE, offset);
 
     if (bytes_written != BLOCK_SIZE)

@@ -6,13 +6,11 @@
 // Mock dcache lookup
 uint32_t dcache_lookup(uint32_t parent_inode, const char *name)
 {
-    // Cast to void to silence the compiler's unused parameter warnings
     (void)parent_inode;
     (void)name;
     return 0;
 }
 
-// The heart of namespace resolution
 int namei(const char *path, uint32_t *target_inode)
 {
     if (path[0] != '/')
@@ -20,7 +18,6 @@ int namei(const char *path, uint32_t *target_inode)
 
     uint32_t current_inode_num = 2; // Root Inode is 2
 
-    // We must copy the path because strtok_r modifies the string
     char *path_copy = strdup(path);
     if (!path_copy)
         return -1;
@@ -63,7 +60,7 @@ int namei(const char *path, uint32_t *target_inode)
             current_inode_num = found_inode;
         }
 
-        // Move to the next part of the path (e.g., from "usr" to "bin")
+        // Move to the next part of the path
         component = strtok_r(NULL, "/", &saveptr);
     }
 

@@ -15,38 +15,33 @@
 #define VFS_O_RDWR 0x0003
 #define VFS_O_APPEND 0x0008
 
-/* * The System-Wide Open File Entry
+/* 
+ * The System-Wide Open File Entry
  * Created every time sys_open() is called. If two processes open the same
  * file, they get two of these structs, which point to the SAME vnode.
  */
 struct file
 {
-    struct vnode *f_vnode; // Pointer to the target file's vnode
-    uint32_t f_pos;        // Current seek offset (read/write pointer)
-    uint32_t f_mode;       // How the file was opened (e.g., VFS_O_RDONLY)
+    struct vnode *f_vnode; 
+    uint32_t f_pos;
+    uint32_t f_mode;
 
-    // Reference counter. If you implement dup() or fork(), multiple FDs
-    // might point to this exact struct. When this hits 0, it is destroyed.
     atomic_int f_ref_count;
 
-    // Protects `f_pos`. If two threads share the SAME file descriptor and
-    // call read() simultaneously, this lock prevents them from corrupting the offset.
     pthread_mutex_t f_pos_lock;
 };
 
-/* * The Per-Process File Descriptor Table (FDT)
+/* 
+ * The Per-Process File Descriptor Table (FDT)
  * Usually stored inside the Process Control Block (PCB).
  */
 struct fd_table
 {
-    // The actual array where index == file descriptor number
     struct file *fd_array[MAX_OPEN_FILES_PER_PROCESS];
 
-    // A bitmap (1024 bits / 32 = 32 integers) to find the lowest available FD instantly.
     uint32_t open_fd_bitmap[MAX_OPEN_FILES_PER_PROCESS / 32];
 
-    // Lock to protect allocating new FDs if multiple threads in the same
-    // process call open() simultaneously.
+    // Lock to protect allocating new FDs if multiple threads in the same process call open() simultaneously.
     pthread_mutex_t lock;
 };
 

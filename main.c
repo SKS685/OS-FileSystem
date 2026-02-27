@@ -8,15 +8,12 @@
 #include "fs/namespace.h"
 
 // --- Global OS State ---
-// This represents the environment of the currently running program (Process ID 1)
 struct fd_table current_process_fdt;
 
-// A quick helper to initialize our process's FDT before we run user code
 void init_process_environment()
 {
     memset(&current_process_fdt, 0, sizeof(struct fd_table));
     pthread_mutex_init(&current_process_fdt.lock, NULL);
-    // fd_allocate() and fd_lookup() from your VFS layer will now work safely!
 }
 
 // --- Forward Declarations from your Subsystems ---
@@ -74,8 +71,6 @@ int main()
     int my_fd = sys_open("/usr/bin/app", VFS_O_RDWR);
     if (my_fd < 0)
     {
-        // NOTE: In our skeleton, namei() returns -1 because we haven't manually
-        // created the Root Directory blocks yet. That is the final exercise!
         printf("    -> [Info] sys_open returned %d (Expected, as Root Dir needs population).\n", my_fd);
     }
     else

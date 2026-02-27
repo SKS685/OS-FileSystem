@@ -4,7 +4,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-/* * Bitmap Manipulation Macros
+/* 
+* Bitmap Manipulation Macros
  * These use bitwise AND/OR to manipulate specific bits within a byte array.
  */
 
@@ -26,7 +27,8 @@ static inline bool bitmap_test_bit(const uint8_t *bitmap, uint32_t bit_idx)
     return (bitmap[bit_idx / 8] & (1 << (bit_idx % 8))) != 0;
 }
 
-/* * High-Performance Search
+/* 
+ * High-Performance Search
  * Scans a 4 KiB bitmap (32,768 bits) to find the first available '0'.
  * Returns 0 on success and populates `free_bit_idx`.
  * Returns -1 if the entire bitmap is full (no space left).

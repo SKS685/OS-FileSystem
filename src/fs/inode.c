@@ -6,10 +6,10 @@
 // Reads an Inode from disk into your provided in-memory structure
 int fs_read_inode(uint32_t inode_num, struct ext_inode *inode_out)
 {
-    // 1. Which Block Group does this Inode belong to?
+    // 1. Block Group from Inode
     uint32_t bg_num = inode_num / FS_INODES_PER_BG;
 
-    // 2. Which specific index inside that BG's Inode Table?
+    // 2. specific index inside that BG's Inode Table?
     uint32_t local_inode_idx = inode_num % FS_INODES_PER_BG;
 
     // 3. Calculate absolute block and byte offset
