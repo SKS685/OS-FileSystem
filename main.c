@@ -6,6 +6,8 @@
 #include "fs/format.h"
 #include "vfs/fd_table.h"
 #include "fs/namespace.h"
+#include "fs/fs.h"
+#include "vfs/syscalls.h"
 
 // --- Global OS State ---
 struct fd_table current_process_fdt;
@@ -15,13 +17,6 @@ void init_process_environment()
     memset(&current_process_fdt, 0, sizeof(struct fd_table));
     pthread_mutex_init(&current_process_fdt.lock, NULL);
 }
-
-// --- Forward Declarations from your Subsystems ---
-extern int fs_format(uint64_t disk_size_bytes);
-extern int sys_open(const char *path, uint32_t mode);
-extern ssize_t sys_write(int fd, const void *buf, size_t count);
-extern ssize_t sys_read(int fd, void *buf, size_t count);
-extern int sys_close(int fd);
 
 int main()
 {

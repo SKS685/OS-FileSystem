@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <pthread.h>
 #include <stdatomic.h>
-#include "vnode.h"
+#include "vfs/vnode.h"
 
 /* --- System Limits & Flags --- */
 #define MAX_OPEN_FILES_PER_PROCESS 1024

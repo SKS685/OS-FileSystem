@@ -2,6 +2,7 @@
 #define UTILS_LOCKS_H
 
 #include <pthread.h>
+#include <stdint.h>
 
 /* --- Standard Mutex (For Block Groups and Open File Table) --- */
 typedef pthread_mutex_t fs_mutex_t;
