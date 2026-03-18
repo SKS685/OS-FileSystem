@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <pthread.h>
+#include "fs/extents.h"
 
 #define EXT_NAME_LEN 255
 #define DCACHE_HASH_SIZE 1024       // Size of the RAM hash table array

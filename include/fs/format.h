@@ -44,8 +44,4 @@ struct ext_block_group_desc
     uint8_t bg_padding[12];             // Pad to exactly 32 bytes for clean arrays
 };
 
-/* --- Internal Allocator API --- */
-int fs_alloc_block(uint32_t bg_num, uint32_t *allocated_block);
-int fs_alloc_inode(uint32_t bg_num, uint32_t *allocated_inode);
-
 #endif // FS_FORMAT_H
