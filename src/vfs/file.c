@@ -254,3 +254,71 @@ int sys_mkdir(const char *parent_path, const char *dir_name, uint16_t mode)
 
     return 0; // Success
 }
+
+/* --- sys_rmdir --- */
+int sys_rmdir(const char *parent_path, const char *dir_name)
+{
+    uint32_t parent_inode_num;
+    uint32_t target_inode_num;
+
+    // 1. Resolve the Parent Directory
+    if (namei(parent_path, &parent_inode_num) != 0) {
+        return -1; // Parent not found
+    }
+
+    struct ext_inode parent_inode;
+    if (fs_read_inode(parent_inode_num, &parent_inode) != 0) return -1;
+
+    // 2. Locate the target directory inside the parent
+    if (fs_find_entry_in_dir(&parent_inode, dir_name, &target_inode_num) != 0) {
+        return -1; // Directory to delete not found
+    }
+
+    struct ext_inode target_inode;
+    if (fs_read_inode(target_inode_num, &target_inode) != 0) return -1;
+
+    // Ensure it is actually a directory (and not a regular file)
+    if ((target_inode.i_mode & EXT_FT_DIR) == 0) return -1;
+
+    // Note: In a production OS, you would loop through target_inode's 
+    // data blocks here to ensure it is empty (only contains '.' and '..') before allowing deletion.
+
+    // 3. Free the target directory's Data Block(s)
+    uint32_t target_bg = target_inode_num / FS_INODES_PER_BG;
+    if (target_inode.i_extents[0].ee_start_block != 0) {
+        uint32_t block_to_free = target_inode.i_extents[0].ee_start_block;
+        fs_free_block(target_bg, block_to_free);
+    }
+
+    // 4. Free the target's Inode
+    fs_free_inode(target_bg, target_inode_num);
+
+    // 5. Invalidate the entry in the Parent Directory (Lazy Deletion)
+    uint8_t parent_block_buf[FS_BLOCK_SIZE];
+    uint32_t parent_physical_block = parent_inode.i_extents[0].ee_start_block;
+
+    if (disk_read_block(parent_physical_block, parent_block_buf) == 0) {
+        uint32_t offset = 0;
+        while (offset < FS_BLOCK_SIZE) {
+            struct ext_dir_entry *entry = (struct ext_dir_entry *)(parent_block_buf + offset);
+            
+            if (entry->rec_len == 0) break;
+
+            // Find the specific entry and set its inode to 0 to invalidate it
+            if (entry->inode == target_inode_num && 
+                strncmp(entry->name, dir_name, entry->name_len) == 0) {
+                entry->inode = 0; 
+                break;
+            }
+            offset += entry->rec_len;
+        }
+        disk_write_block(parent_physical_block, parent_block_buf);
+    }
+
+    // 6. Update Parent Inode Links
+    // Decrement the link count because the child's '..' link is gone
+    parent_inode.i_links_count -= 1; 
+    fs_write_inode(parent_inode_num, &parent_inode);
+
+    return 0; // Success
+}
