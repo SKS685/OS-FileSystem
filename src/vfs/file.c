@@ -160,3 +160,97 @@ int sys_close(int fd)
 
     return 0;
 }
+
+/* --- sys_mkdir --- */
+int sys_mkdir(const char *parent_path, const char *dir_name, uint16_t mode)
+{
+    uint32_t parent_inode_num;
+    uint32_t new_inode_num;
+    uint32_t new_data_block;
+
+    // 1. Find the Parent Directory
+    if (namei(parent_path, &parent_inode_num) != 0) {
+        return -1; // Parent directory not found
+    }
+
+    struct ext_inode parent_inode;
+    if (fs_read_inode(parent_inode_num, &parent_inode) != 0) {
+        return -1;
+    }
+
+    // 2. Allocate Space (assuming Block Group 0 for simplicity in this example)
+    if (fs_alloc_inode(0, &new_inode_num) != 0) return -1;
+    if (fs_alloc_block(0, &new_data_block) != 0) return -1;
+
+    // 3. Format the New Directory's Data Block (Create '.' and '..')
+    uint8_t dir_buf[FS_BLOCK_SIZE] = {0};
+    
+    // Setup '.' (Points to itself)
+    struct ext_dir_entry *dot_entry = (struct ext_dir_entry *)dir_buf;
+    dot_entry->inode = new_inode_num;
+    dot_entry->name_len = 1;
+    dot_entry->file_type = EXT_FT_DIR;
+    dot_entry->rec_len = 12; // 8 bytes struct + 4 bytes padded name
+    strcpy(dot_entry->name, ".");
+
+    // Setup '..' (Points to parent)
+    struct ext_dir_entry *dotdot_entry = (struct ext_dir_entry *)(dir_buf + dot_entry->rec_len);
+    dotdot_entry->inode = parent_inode_num;
+    dotdot_entry->name_len = 2;
+    dotdot_entry->file_type = EXT_FT_DIR;
+    dotdot_entry->rec_len = FS_BLOCK_SIZE - dot_entry->rec_len; // Takes up the rest of the block
+    strcpy(dotdot_entry->name, "..");
+
+    if (disk_write_block(new_data_block, dir_buf) != 0) return -1;
+
+    // 4. Save the New Inode
+    struct ext_inode new_inode;
+    memset(&new_inode, 0, sizeof(new_inode));
+    new_inode.i_mode = EXT_FT_DIR | mode;
+    new_inode.i_size = FS_BLOCK_SIZE;
+    new_inode.i_links_count = 2; // '.' and the parent's link
+    new_inode.i_extents[0].ee_logical_block = 0;
+    new_inode.i_extents[0].ee_start_block = new_data_block;
+    new_inode.i_extents[0].ee_length = 1;
+
+    if (fs_write_inode(new_inode_num, &new_inode) != 0) return -1;
+
+    // 5. Link to Parent (Append new directory to parent's data block)
+    uint8_t parent_block_buf[FS_BLOCK_SIZE];
+    uint32_t parent_physical_block = parent_inode.i_extents[0].ee_start_block;
+    
+    if (disk_read_block(parent_physical_block, parent_block_buf) != 0) return -1;
+
+    // Scan for the end of the parent directory entries to append the new one
+    uint32_t offset = 0;
+    while (offset < FS_BLOCK_SIZE) {
+        struct ext_dir_entry *entry = (struct ext_dir_entry *)(parent_block_buf + offset);
+        
+        // Find the last entry (which currently takes up the rest of the block)
+        uint32_t required_len = 8 + (entry->name_len + 3) & ~3; // 4-byte alignment
+        
+        if (entry->rec_len > required_len) {
+            // Shrink the current last entry to its minimum required size
+            uint16_t old_rec_len = entry->rec_len;
+            entry->rec_len = required_len;
+            
+            // Create the new entry in the newly freed space
+            struct ext_dir_entry *new_entry = (struct ext_dir_entry *)(parent_block_buf + offset + required_len);
+            new_entry->inode = new_inode_num;
+            new_entry->name_len = strlen(dir_name);
+            new_entry->file_type = EXT_FT_DIR;
+            new_entry->rec_len = old_rec_len - required_len; // Takes the remaining space
+            strcpy(new_entry->name, dir_name);
+            break;
+        }
+        offset += entry->rec_len;
+    }
+
+    // Write parent block back to disk and update parent inode links
+    disk_write_block(parent_physical_block, parent_block_buf);
+    
+    parent_inode.i_links_count += 1; // '..' from the new child directory
+    fs_write_inode(parent_inode_num, &parent_inode);
+
+    return 0; // Success
+}
