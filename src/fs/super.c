@@ -4,6 +4,8 @@
 #include "fs/extents.h"
 #include "fs/namespace.h"
 #include "disk/block_dev.h"
+#include "utils/bitmaps.h"
+#include "fs/allocator.h"
 
 // The globally cached superblock
 static struct ext_super_block global_sb;
@@ -41,13 +43,38 @@ int fs_format(uint64_t disk_size_bytes)
     }
 
     // --- BUILD THE ROOT DIRECTORY (Inode 2) ---
+
+    // 1. Protect Metadata Blocks in BG 0's Block Bitmap
+    // Block 0: Superblock, Block 1: Block Bitmap, Block 2: Inode Bitmap
+    // Block 3 to N: Inode Table (calculated based on inodes per BG)
+    uint8_t bg0_block_bitmap[FS_BLOCK_SIZE] = {0};
+    uint32_t inode_table_blocks = (FS_INODES_PER_BG * sizeof(struct ext_inode)) / FS_BLOCK_SIZE;
+    uint32_t metadata_blocks = 3 + inode_table_blocks;
+
+    for (uint32_t i = 0; i < metadata_blocks; i++) {
+        bitmap_set_bit(bg0_block_bitmap, i);
+    }
+    // BG 0's Block Bitmap lives at physical block 1
+    disk_write_block(1, bg0_block_bitmap);
+
+    // 2. Protect Reserved Inodes in BG 0's Inode Bitmap
+    uint8_t bg0_inode_bitmap[FS_BLOCK_SIZE] = {0};
+    bitmap_set_bit(bg0_inode_bitmap, 0); // Inode 0 is invalid/null
+    bitmap_set_bit(bg0_inode_bitmap, 1); // Inode 1 reserved (usually bad blocks)
+    bitmap_set_bit(bg0_inode_bitmap, 2); // Inode 2 is Root
+    // BG 0's Inode Bitmap lives at physical block 2
+    disk_write_block(2, bg0_inode_bitmap);
+
+    // 3. Create the Root Inode
     struct ext_inode root_inode;
     memset(&root_inode, 0, sizeof(root_inode));
-    root_inode.i_mode = EXT_FT_DIR;
+    root_inode.i_mode = EXT_FT_DIR | 0755; // Directory + standard rwxr-xr-x permissions
     root_inode.i_size = FS_BLOCK_SIZE;
-    root_inode.i_links_count = 2;
+    root_inode.i_links_count = 2;          // Links for '.' and '..'
 
-    // Allocate 1 data block for the directory's contents
+    // 4. Allocate 1 data block for the directory's contents
+    // Because we protected the metadata blocks above, this will now correctly 
+    // allocate the very first *actual* free data block (e.g., Block 259)
     uint32_t root_data_block;
     fs_alloc_block(0, &root_data_block);
 
@@ -57,14 +84,24 @@ int fs_format(uint64_t disk_size_bytes)
 
     fs_write_inode(2, &root_inode); // Save Inode to disk
 
-    // Write the empty directory data array to that allocated block
+    // 5. Populate Root Directory Data Block with '.' and '..'
     uint8_t dir_buf[FS_BLOCK_SIZE] = {0};
-    struct ext_dir_entry *entry = (struct ext_dir_entry *)dir_buf;
-    entry->inode = 2;               // Points to itself
-    entry->rec_len = FS_BLOCK_SIZE; // Takes up the whole block for now
-    entry->name_len = 1;
-    entry->file_type = EXT_FT_DIR;
-    entry->name[0] = '.'; // The standard '.' current directory pointer
+    
+    // Setup '.'
+    struct ext_dir_entry *dot_entry = (struct ext_dir_entry *)dir_buf;
+    dot_entry->inode = 2;               
+    dot_entry->name_len = 1;
+    dot_entry->file_type = EXT_FT_DIR;
+    dot_entry->rec_len = 12; // 8 bytes for struct + 4 bytes for padded name
+    strcpy(dot_entry->name, ".");
+
+    // Setup '..' (For Root, '..' points to itself)
+    struct ext_dir_entry *dotdot_entry = (struct ext_dir_entry *)(dir_buf + dot_entry->rec_len);
+    dotdot_entry->inode = 2;            
+    dotdot_entry->name_len = 2;
+    dotdot_entry->file_type = EXT_FT_DIR;
+    dotdot_entry->rec_len = FS_BLOCK_SIZE - dot_entry->rec_len; // Takes up the remaining space
+    strcpy(dotdot_entry->name, "..");
 
     disk_write_block(root_data_block, dir_buf);
 
