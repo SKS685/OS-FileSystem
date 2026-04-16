@@ -50,3 +50,29 @@ int fs_alloc_inode(uint32_t bg_num, uint32_t *allocated_inode)
     *allocated_inode = (bg_num * FS_INODES_PER_BG) + free_bit;
     return 0;
 }
+
+int fs_free_block(uint32_t bg_num, uint32_t block_num)
+{
+    uint8_t bitmap_buf[FS_BLOCK_SIZE];
+    uint32_t bitmap_physical_block = (bg_num * FS_BLOCKS_PER_BG) + 1;
+
+    if (disk_read_block(bitmap_physical_block, bitmap_buf) != 0) return -1;
+
+    uint32_t local_bit = block_num % FS_BLOCKS_PER_BG;
+    bitmap_clear_bit(bitmap_buf, local_bit);
+    
+    return disk_write_block(bitmap_physical_block, bitmap_buf);
+}
+
+int fs_free_inode(uint32_t bg_num, uint32_t inode_num)
+{
+    uint8_t bitmap_buf[FS_BLOCK_SIZE];
+    uint32_t bitmap_physical_block = (bg_num * FS_BLOCKS_PER_BG) + 2;
+
+    if (disk_read_block(bitmap_physical_block, bitmap_buf) != 0) return -1;
+
+    uint32_t local_bit = inode_num % FS_INODES_PER_BG;
+    bitmap_clear_bit(bitmap_buf, local_bit);
+    
+    return disk_write_block(bitmap_physical_block, bitmap_buf);
+}
