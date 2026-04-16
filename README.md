@@ -65,8 +65,8 @@ Implements the on-disk filesystem logic on top of the block device. The layout i
 | Function | Description |
 |---|---|
 | `fs_format` | Writes superblock, block group descriptors, and initializes bitmaps |
-| `fs_alloc_block` | Allocates a free block using the block bitmap |
-| `fs_alloc_inode` | Allocates a free inode using the inode bitmap |
+| `fs_alloc_block / fs_free_block` | Allocates or frees a data block using the block bitmap |
+| `fs_alloc_inode / fs_free_inode` | Allocates or frees an inode using the inode bitmap |
 | `fs_read_inode` | Reads an inode from the inode table |
 | `fs_write_inode` | Writes an inode to the inode table |
 | `fs_find_entry_in_dir` | Searches a directory block for a named entry |
@@ -83,6 +83,8 @@ Provides a POSIX-style interface over the core filesystem. Vnodes are the in-mem
 | `sys_read` | Acquires read lock, delegates to `v_ops->read` |
 | `sys_write` | Acquires write lock, delegates to `v_ops->write` |
 | `sys_close` | Releases fd and decrements vnode reference count |
+| `sys_mkdir` | Allocates inodes/blocks and formats a new directory entry |
+| `sys_rmdir` | nvalidates directory entries and frees associated inodes/blocks |
 | `vnode_lookup` | Finds or creates a vnode in the vnode cache |
 | `vnode_release` | Decrements reference count; evicts from cache at zero |
 | `fd_table_init` | Initializes the per-process file descriptor table |
@@ -284,10 +286,6 @@ Spawns 16 concurrent threads hammering the block device layer. Verifies that `pt
 
 ## Known Limitations & TODOs
 
-- **Root directory is not populated.** `sys_open` currently returns `-1` for any path because the root inode and directory structure are not written during `fs_format`. The next logical step is to implement root directory initialization (creating `.` and `..` entries, allocating the root inode with inode number 2 following ext convention).
-
 - **No persistence across runs.** The disk image is re-formatted on every boot. Persistence would require skipping the format step when a valid magic number is detected in the superblock.
 
 - **Single-threaded VFS.** The per-vnode `pthread_rwlock_t` protects individual file access, but the vnode cache and fd table use a single global mutex. A sharded lock design would improve scalability under heavy concurrent load.
-
-- **No directory creation syscall.** `sys_mkdir` and related directory management syscalls are not yet implemented.
